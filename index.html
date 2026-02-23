@@ -1,196 +1,243 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>EUR/GBP OTC</title>
-    <style>
-        body {
-            margin:0;
-            background:#0f172a;
-            color:white;
-            font-family:Arial;
-        }
+<title>EUR/GBP OTC</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-        h2 {
-            text-align:center;
-            margin-top:10px;
-        }
+<style>
+body{
+    margin:0;
+    background:#0f172a;
+    color:white;
+    font-family:Arial;
+}
 
-        .top-bar {
-            display:flex;
-            justify-content:space-between;
-            padding:15px 30px;
-        }
+.topbar{
+    display:flex;
+    justify-content:space-between;
+    padding:15px 30px;
+}
 
-        .balance { font-size:18px; }
-        .timer { color:#facc15; }
+.rightpanel{
+    position:absolute;
+    top:80px;
+    right:20px;
+    width:220px;
+    background:#111827;
+    padding:20px;
+    border-radius:10px;
+}
 
-        .right-panel {
-            position:absolute;
-            top:80px;
-            right:30px;
-            background:#111827;
-            padding:20px;
-            border-radius:10px;
-            width:200px;
-        }
+.rightpanel input{
+    width:100%;
+    padding:8px;
+    margin-bottom:10px;
+    text-align:center;
+}
 
-        .right-panel input {
-            width:100%;
-            padding:8px;
-            margin-bottom:10px;
-            text-align:center;
-            font-size:16px;
-        }
+.rightpanel button{
+    width:100%;
+    padding:12px;
+    margin-top:8px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    font-size:16px;
+}
 
-        .right-panel button {
-            width:100%;
-            padding:12px;
-            margin-top:8px;
-            border:none;
-            border-radius:6px;
-            font-size:16px;
-            cursor:pointer;
-        }
+.up{background:#16a34a;color:white;}
+.down{background:#dc2626;color:white;}
 
-        .up { background:#16a34a; color:white; }
-        .down { background:#dc2626; color:white; }
+canvas{
+    margin-left:20px;
+    margin-top:20px;
+    background:#111827;
+}
 
-        #resultMessage {
-            position:absolute;
-            top:50%;
-            left:50%;
-            transform:translate(-50%, -50%);
-            font-size:28px;
-            font-weight:bold;
-            display:none;
-        }
-    </style>
+.history{
+    position:absolute;
+    bottom:20px;
+    right:20px;
+    width:220px;
+    background:#111827;
+    padding:15px;
+    border-radius:10px;
+    font-size:14px;
+    max-height:200px;
+    overflow:auto;
+}
+
+#message{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    font-size:28px;
+    display:none;
+}
+</style>
 </head>
 <body>
 
-<h2>EUR/GBP OTC</h2>
-
-<div class="top-bar">
-    <div class="balance">Balance: $<span id="balance">1000</span></div>
-    <div class="timer">Timer: <span id="timer">--</span></div>
+<div class="topbar">
+<div>Balance: $<span id="balance"></span></div>
+<div>Timer: <span id="timer">--</span></div>
 </div>
 
-<div id="tradingview_chart"></div>
+<canvas id="chart" width="900" height="500"></canvas>
 
-<div class="right-panel">
-    Trade Amount $
-    <input type="number" id="amount" value="10" min="1">
-    <button class="up" onclick="placeTrade('up')">UP</button>
-    <button class="down" onclick="placeTrade('down')">DOWN</button>
+<div class="rightpanel">
+Trade Amount $
+<input type="number" id="amount" value="10">
+<button class="up" onclick="placeTrade('up')">UP</button>
+<button class="down" onclick="placeTrade('down')">DOWN</button>
 </div>
 
-<div id="resultMessage"></div>
+<div class="history">
+<b>Trade History</b>
+<div id="historyList"></div>
+</div>
 
-<script src="https://s3.tradingview.com/tv.js"></script>
-
-<script>
-new TradingView.widget({
-  "width": "100%",
-  "height": 600,
-  "symbol": "FX:EURGBP",
-  "interval": "1",
-  "timezone": "Asia/Kolkata",
-  "theme": "dark",
-  "style": "1",
-  "locale": "en",
-  "toolbar_bg": "#0f172a",
-  "enable_publishing": false,
-  "allow_symbol_change": false,
-  "container_id": "tradingview_chart"
-});
-</script>
+<div id="message"></div>
 
 <script>
-let balance = 1000;
-let tradeActive = false;
-let entryPrice = 0;
-let tradeDirection = "";
-let expiry = 60;
-let timerInterval;
+let balance = localStorage.getItem("balance") ? parseFloat(localStorage.getItem("balance")) : 1000;
+document.getElementById("balance").innerText = balance;
+
+let currentPrice = 1.1000;
+let data = [];
+let labels = [];
 let entryLine = null;
+let tradeActive=false;
+let entryPrice=0;
+let direction="";
+let expiry=60;
+let timerInterval;
 
-function getFakePrice() {
-    return 1.1000 + (Math.random() - 0.5) * 0.01;
+const ctx=document.getElementById("chart").getContext("2d");
+
+function generateCandle(){
+    let open=currentPrice;
+    let close=open+(Math.random()-0.5)*0.004;
+    currentPrice=close;
+    return close;
 }
 
-function placeTrade(direction) {
-    if (tradeActive) return;
-
-    let amount = parseFloat(document.getElementById("amount").value);
-    if (amount <= 0 || amount > balance) return;
-
-    tradeActive = true;
-    tradeDirection = direction;
-    entryPrice = getFakePrice();
-    balance -= amount;
-    document.getElementById("balance").innerText = balance;
-
-    showEntryLine(entryPrice);
-
-    let timeLeft = expiry;
-    document.getElementById("timer").innerText = timeLeft;
-
-    timerInterval = setInterval(() => {
-        timeLeft--;
-        document.getElementById("timer").innerText = timeLeft;
-
-        if (timeLeft <= 0) {
-            clearInterval(timerInterval);
-            finishTrade(amount);
-        }
-    }, 1000);
+for(let i=0;i<40;i++){
+    data.push(generateCandle());
+    labels.push(i);
 }
 
-function showEntryLine(price) {
-    if(entryLine) entryLine.remove();
+const chart=new Chart(ctx,{
+type:'line',
+data:{
+labels:labels,
+datasets:[
+{
+label:'EUR/GBP',
+data:data,
+borderColor:'#22c55e',
+borderWidth:2,
+tension:0
+},
+{
+label:'Entry',
+data:[],
+borderColor:'yellow',
+borderWidth:2,
+pointRadius:0
+}
+]
+},
+options:{
+responsive:false,
+scales:{
+x:{ticks:{color:'white'}},
+y:{ticks:{color:'white'}}
+}
+}
+});
 
-    entryLine = document.createElement("div");
-    entryLine.style.position = "absolute";
-    entryLine.style.top = "300px";
-    entryLine.style.left = "0";
-    entryLine.style.width = "100%";
-    entryLine.style.height = "2px";
-    entryLine.style.background = "yellow";
-    entryLine.style.zIndex = "10";
+setInterval(()=>{
+data.push(generateCandle());
+data.shift();
+chart.update();
+},2000);
 
-    document.body.appendChild(entryLine);
+function placeTrade(dir){
+if(tradeActive) return;
+
+let amount=parseFloat(document.getElementById("amount").value);
+if(amount<=0||amount>balance) return;
+
+tradeActive=true;
+direction=dir;
+entryPrice=currentPrice;
+balance-=amount;
+updateBalance();
+
+drawEntryLine(entryPrice);
+
+let timeLeft=expiry;
+document.getElementById("timer").innerText=timeLeft;
+
+timerInterval=setInterval(()=>{
+timeLeft--;
+document.getElementById("timer").innerText=timeLeft;
+if(timeLeft<=0){
+clearInterval(timerInterval);
+finishTrade(amount);
+}
+},1000);
 }
 
-function finishTrade(amount) {
-    let exitPrice = getFakePrice();
-    let win = false;
+function drawEntryLine(price){
+chart.data.datasets[1].data=new Array(data.length).fill(price);
+chart.update();
+}
 
-    if (tradeDirection === "up" && exitPrice > entryPrice) win = true;
-    if (tradeDirection === "down" && exitPrice < entryPrice) win = true;
+function finishTrade(amount){
+let win=false;
+if(direction==="up"&&currentPrice>entryPrice) win=true;
+if(direction==="down"&&currentPrice<entryPrice) win=true;
 
-    let resultDiv = document.getElementById("resultMessage");
+let msg=document.getElementById("message");
 
-    if (win) {
-        balance += amount * 1.8;
-        resultDiv.style.color = "#22c55e";
-        resultDiv.innerText = "WIN";
-        entryLine.style.background = "#22c55e";
-    } else {
-        resultDiv.style.color = "#ef4444";
-        resultDiv.innerText = "LOSS";
-        entryLine.style.background = "#ef4444";
-    }
+if(win){
+balance+=amount*1.8;
+msg.style.color="#22c55e";
+msg.innerText="WIN";
+}else{
+msg.style.color="#ef4444";
+msg.innerText="LOSS";
+}
 
-    document.getElementById("balance").innerText = balance;
-    resultDiv.style.display = "block";
+msg.style.display="block";
 
-    setTimeout(() => {
-        resultDiv.style.display = "none";
-        if(entryLine) entryLine.remove();
-    }, 3000);
+addHistory(win,amount);
 
-    document.getElementById("timer").innerText = "--";
-    tradeActive = false;
+setTimeout(()=>{
+msg.style.display="none";
+chart.data.datasets[1].data=[];
+chart.update();
+},3000);
+
+document.getElementById("timer").innerText="--";
+updateBalance();
+tradeActive=false;
+}
+
+function addHistory(win,amount){
+let h=document.getElementById("historyList");
+let div=document.createElement("div");
+div.innerText=(win?"Win ":"Loss ")+"$"+amount;
+div.style.color=win?"#22c55e":"#ef4444";
+h.prepend(div);
+}
+
+function updateBalance(){
+document.getElementById("balance").innerText=balance;
+localStorage.setItem("balance",balance);
 }
 </script>
 
