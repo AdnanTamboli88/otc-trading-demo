@@ -4,77 +4,94 @@
     <title>EUR/GBP OTC</title>
     <style>
         body {
-            margin: 0;
-            background: #0f172a;
-            color: white;
-            font-family: Arial;
-            text-align: center;
+            margin:0;
+            background:#0f172a;
+            color:white;
+            font-family:Arial;
         }
 
         h2 {
-            padding-top: 10px;
+            text-align:center;
+            margin-top:10px;
         }
 
-        .top {
-            display: flex;
-            justify-content: space-between;
-            padding: 15px 40px;
-            font-size: 18px;
+        .top-bar {
+            display:flex;
+            justify-content:space-between;
+            padding:15px 30px;
         }
 
-        .timer {
-            color: #facc15;
+        .balance { font-size:18px; }
+        .timer { color:#facc15; }
+
+        .right-panel {
+            position:absolute;
+            top:80px;
+            right:30px;
+            background:#111827;
+            padding:20px;
+            border-radius:10px;
+            width:200px;
         }
 
-        .controls {
-            margin: 20px;
+        .right-panel input {
+            width:100%;
+            padding:8px;
+            margin-bottom:10px;
+            text-align:center;
+            font-size:16px;
         }
 
-        input {
-            padding: 8px;
-            width: 100px;
-            text-align: center;
-            font-size: 16px;
+        .right-panel button {
+            width:100%;
+            padding:12px;
+            margin-top:8px;
+            border:none;
+            border-radius:6px;
+            font-size:16px;
+            cursor:pointer;
         }
 
-        button {
-            padding: 12px 30px;
-            margin: 10px;
-            font-size: 16px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
+        .up { background:#16a34a; color:white; }
+        .down { background:#dc2626; color:white; }
 
-        .up { background: #16a34a; color: white; }
-        .down { background: #dc2626; color: white; }
+        #resultMessage {
+            position:absolute;
+            top:50%;
+            left:50%;
+            transform:translate(-50%, -50%);
+            font-size:28px;
+            font-weight:bold;
+            display:none;
+        }
     </style>
 </head>
 <body>
 
 <h2>EUR/GBP OTC</h2>
 
-<div class="top">
-    <div>Balance: $<span id="balance">1000</span></div>
+<div class="top-bar">
+    <div class="balance">Balance: $<span id="balance">1000</span></div>
     <div class="timer">Timer: <span id="timer">--</span></div>
 </div>
 
-<!-- TradingView Chart -->
 <div id="tradingview_chart"></div>
 
-<div class="controls">
-    Trade Amount: $
-    <input type="number" id="amount" value="10" min="1"><br>
+<div class="right-panel">
+    Trade Amount $
+    <input type="number" id="amount" value="10" min="1">
     <button class="up" onclick="placeTrade('up')">UP</button>
     <button class="down" onclick="placeTrade('down')">DOWN</button>
 </div>
+
+<div id="resultMessage"></div>
 
 <script src="https://s3.tradingview.com/tv.js"></script>
 
 <script>
 new TradingView.widget({
   "width": "100%",
-  "height": 500,
+  "height": 600,
   "symbol": "FX:EURGBP",
   "interval": "1",
   "timezone": "Asia/Kolkata",
@@ -95,8 +112,8 @@ let entryPrice = 0;
 let tradeDirection = "";
 let expiry = 60;
 let timerInterval;
+let entryLine = null;
 
-// Fake price simulation for demo result
 function getFakePrice() {
     return 1.1000 + (Math.random() - 0.5) * 0.01;
 }
@@ -105,18 +122,15 @@ function placeTrade(direction) {
     if (tradeActive) return;
 
     let amount = parseFloat(document.getElementById("amount").value);
-
-    if (amount <= 0 || amount > balance) {
-        alert("Invalid amount!");
-        return;
-    }
+    if (amount <= 0 || amount > balance) return;
 
     tradeActive = true;
     tradeDirection = direction;
     entryPrice = getFakePrice();
-
     balance -= amount;
     document.getElementById("balance").innerText = balance;
+
+    showEntryLine(entryPrice);
 
     let timeLeft = expiry;
     document.getElementById("timer").innerText = timeLeft;
@@ -132,6 +146,21 @@ function placeTrade(direction) {
     }, 1000);
 }
 
+function showEntryLine(price) {
+    if(entryLine) entryLine.remove();
+
+    entryLine = document.createElement("div");
+    entryLine.style.position = "absolute";
+    entryLine.style.top = "300px";
+    entryLine.style.left = "0";
+    entryLine.style.width = "100%";
+    entryLine.style.height = "2px";
+    entryLine.style.background = "yellow";
+    entryLine.style.zIndex = "10";
+
+    document.body.appendChild(entryLine);
+}
+
 function finishTrade(amount) {
     let exitPrice = getFakePrice();
     let win = false;
@@ -139,14 +168,27 @@ function finishTrade(amount) {
     if (tradeDirection === "up" && exitPrice > entryPrice) win = true;
     if (tradeDirection === "down" && exitPrice < entryPrice) win = true;
 
+    let resultDiv = document.getElementById("resultMessage");
+
     if (win) {
         balance += amount * 1.8;
-        alert("You Win!");
+        resultDiv.style.color = "#22c55e";
+        resultDiv.innerText = "WIN";
+        entryLine.style.background = "#22c55e";
     } else {
-        alert("You Lose!");
+        resultDiv.style.color = "#ef4444";
+        resultDiv.innerText = "LOSS";
+        entryLine.style.background = "#ef4444";
     }
 
     document.getElementById("balance").innerText = balance;
+    resultDiv.style.display = "block";
+
+    setTimeout(() => {
+        resultDiv.style.display = "none";
+        if(entryLine) entryLine.remove();
+    }, 3000);
+
     document.getElementById("timer").innerText = "--";
     tradeActive = false;
 }
@@ -154,3 +196,4 @@ function finishTrade(amount) {
 
 </body>
 </html>
+
