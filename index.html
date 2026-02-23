@@ -3,9 +3,10 @@
 <head>
     <title>EUR/GBP OTC</title>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@3.3.0/dist/chartjs-chart-financial.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 
     <style>
         body {
@@ -27,7 +28,6 @@
 
         input {
             padding: 8px;
-            font-size: 16px;
             width: 100px;
             text-align: center;
         }
@@ -50,7 +50,7 @@
             margin-top: 10px;
         }
 
-        .timer { color: #facc15; font-size: 18px; }
+        .timer { color: #facc15; }
     </style>
 </head>
 <body>
@@ -67,9 +67,7 @@
 <div class="controls">
     Trade Amount: $
     <input type="number" id="amount" value="10" min="1">
-
     <br>
-
     <button class="up" onclick="placeTrade('up')">UP</button>
     <button class="down" onclick="placeTrade('down')">DOWN</button>
     <button class="draw" onclick="enableDraw()">Draw S/R</button>
@@ -77,16 +75,14 @@
 
 <script>
 let balance = 1000;
-let candles = [];
 let currentPrice = 1.1000;
+let candles = [];
 let tradeActive = false;
 let entryPrice = 0;
 let tradeDirection = "";
 let expiryTime = 60;
 let timerInterval;
 let drawMode = false;
-
-const ctx = document.getElementById('chart').getContext('2d');
 
 function generateCandle() {
     let open = currentPrice;
@@ -96,12 +92,20 @@ function generateCandle() {
 
     currentPrice = close;
 
-    return { x: new Date(), o: open, h: high, l: low, c: close };
+    return {
+        x: new Date(),
+        o: open,
+        h: high,
+        l: low,
+        c: close
+    };
 }
 
-for (let i = 0; i < 30; i++) {
+for (let i = 0; i < 40; i++) {
     candles.push(generateCandle());
 }
+
+const ctx = document.getElementById("chart").getContext("2d");
 
 const chart = new Chart(ctx, {
     type: 'candlestick',
@@ -113,14 +117,18 @@ const chart = new Chart(ctx, {
     },
     options: {
         responsive: false,
-        plugins: {
-            annotation: {
-                annotations: {}
+        scales: {
+            x: {
+                type: 'time',
+                time: { unit: 'minute' },
+                ticks: { color: "white" }
+            },
+            y: {
+                ticks: { color: "white" }
             }
         },
-        scales: {
-            x: { ticks: { color: "white" } },
-            y: { ticks: { color: "white" } }
+        plugins: {
+            annotation: { annotations: {} }
         }
     }
 });
@@ -180,7 +188,7 @@ function finishTrade(amount) {
 
 function enableDraw() {
     drawMode = true;
-    alert("Click on chart to draw Support/Resistance line");
+    alert("Click on chart to draw Support/Resistance");
 }
 
 document.getElementById("chart").onclick = function(evt) {
@@ -198,7 +206,7 @@ document.getElementById("chart").onclick = function(evt) {
 
     chart.update();
     drawMode = false;
-}
+};
 </script>
 
 </body>
