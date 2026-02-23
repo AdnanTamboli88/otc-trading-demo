@@ -1,58 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>EUR/GBP OTC</title>
+<title>EUR/GBP OTC</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@3.3.0/dist/chartjs-chart-financial.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+body {
+    background:#0f172a;
+    color:white;
+    font-family:Arial;
+    text-align:center;
+}
 
-    <style>
-        body {
-            background: #0f172a;
-            color: white;
-            font-family: Arial;
-            text-align: center;
-        }
+.top {
+    display:flex;
+    justify-content:space-between;
+    padding:15px 40px;
+}
 
-        .top {
-            display: flex;
-            justify-content: space-between;
-            padding: 15px 40px;
-        }
+canvas {
+    background:#111827;
+    margin-top:20px;
+}
 
-        .controls {
-            margin-top: 10px;
-        }
+button {
+    padding:12px 30px;
+    margin:8px;
+    font-size:16px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+}
 
-        input {
-            padding: 8px;
-            width: 100px;
-            text-align: center;
-        }
+.up { background:#16a34a; color:white; }
+.down { background:#dc2626; color:white; }
 
-        button {
-            padding: 12px 30px;
-            margin: 8px;
-            font-size: 16px;
-            border: none;
-            cursor: pointer;
-            border-radius: 6px;
-        }
+input {
+    padding:6px;
+    width:100px;
+    text-align:center;
+}
 
-        .up { background: #16a34a; color: white; }
-        .down { background: #dc2626; color: white; }
-        .draw { background: #2563eb; color: white; }
-
-        canvas {
-            background: #111827;
-            margin-top: 10px;
-        }
-
-        .timer { color: #facc15; }
-    </style>
+.timer { color:#facc15; }
+</style>
 </head>
+
 <body>
 
 <h2>EUR/GBP OTC</h2>
@@ -64,150 +56,26 @@
 
 <canvas id="chart" width="900" height="400"></canvas>
 
-<div class="controls">
+<div>
     Trade Amount: $
-    <input type="number" id="amount" value="10" min="1">
-    <br>
+    <input type="number" id="amount" value="10" min="1"><br>
     <button class="up" onclick="placeTrade('up')">UP</button>
     <button class="down" onclick="placeTrade('down')">DOWN</button>
-    <button class="draw" onclick="enableDraw()">Draw S/R</button>
 </div>
 
 <script>
 let balance = 1000;
 let currentPrice = 1.1000;
-let candles = [];
+let data = [];
+let labels = [];
 let tradeActive = false;
 let entryPrice = 0;
 let tradeDirection = "";
-let expiryTime = 60;
+let expiry = 60;
 let timerInterval;
-let drawMode = false;
-
-function generateCandle() {
-    let open = currentPrice;
-    let close = open + (Math.random() - 0.5) * 0.004;
-    let high = Math.max(open, close) + Math.random() * 0.002;
-    let low = Math.min(open, close) - Math.random() * 0.002;
-
-    currentPrice = close;
-
-    return {
-        x: new Date(),
-        o: open,
-        h: high,
-        l: low,
-        c: close
-    };
-}
-
-for (let i = 0; i < 40; i++) {
-    candles.push(generateCandle());
-}
 
 const ctx = document.getElementById("chart").getContext("2d");
 
-const chart = new Chart(ctx, {
-    type: 'candlestick',
-    data: {
-        datasets: [{
-            label: 'EUR/GBP OTC',
-            data: candles
-        }]
-    },
-    options: {
-        responsive: false,
-        scales: {
-            x: {
-                type: 'time',
-                time: { unit: 'minute' },
-                ticks: { color: "white" }
-            },
-            y: {
-                ticks: { color: "white" }
-            }
-        },
-        plugins: {
-            annotation: { annotations: {} }
-        }
-    }
-});
+function generateCandle() {
+    let open = current
 
-setInterval(() => {
-    candles.push(generateCandle());
-    candles.shift();
-    chart.update();
-}, 2000);
-
-function placeTrade(direction) {
-    if (tradeActive) return;
-
-    let amount = parseFloat(document.getElementById("amount").value);
-    if (amount <= 0 || amount > balance) {
-        alert("Invalid amount!");
-        return;
-    }
-
-    tradeActive = true;
-    tradeDirection = direction;
-    entryPrice = currentPrice;
-    balance -= amount;
-    document.getElementById("balance").innerText = balance;
-
-    let timeLeft = expiryTime;
-    document.getElementById("timer").innerText = timeLeft;
-
-    timerInterval = setInterval(() => {
-        timeLeft--;
-        document.getElementById("timer").innerText = timeLeft;
-
-        if (timeLeft <= 0) {
-            clearInterval(timerInterval);
-            finishTrade(amount);
-        }
-    }, 1000);
-}
-
-function finishTrade(amount) {
-    let win = false;
-
-    if (tradeDirection === "up" && currentPrice > entryPrice) win = true;
-    if (tradeDirection === "down" && currentPrice < entryPrice) win = true;
-
-    if (win) {
-        balance += amount * 1.8;
-        alert("You Win!");
-    } else {
-        alert("You Lose!");
-    }
-
-    document.getElementById("balance").innerText = balance;
-    document.getElementById("timer").innerText = "--";
-    tradeActive = false;
-}
-
-function enableDraw() {
-    drawMode = true;
-    alert("Click on chart to draw Support/Resistance");
-}
-
-document.getElementById("chart").onclick = function(evt) {
-    if (!drawMode) return;
-
-    const yValue = chart.scales.y.getValueForPixel(evt.offsetY);
-
-    chart.options.plugins.annotation.annotations["line" + Date.now()] = {
-        type: 'line',
-        yMin: yValue,
-        yMax: yValue,
-        borderColor: 'yellow',
-        borderWidth: 2
-    };
-
-    chart.update();
-    drawMode = false;
-};
-</script>
-
-</body>
-</html>
