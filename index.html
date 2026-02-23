@@ -3,106 +3,191 @@
 <head>
     <title>EUR/GBP OTC Trading</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
+
     <style>
         body {
-            background: #111;
+            background: #0f172a;
             color: white;
-            text-align: center;
             font-family: Arial;
+            text-align: center;
         }
+
+        h2 {
+            margin-top: 10px;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 30px;
+        }
+
+        .balance {
+            font-size: 18px;
+        }
+
+        .timer {
+            font-size: 20px;
+            color: #facc15;
+        }
+
+        canvas {
+            background: #111827;
+            margin-top: 10px;
+        }
+
+        .buttons {
+            margin-top: 20px;
+        }
+
         button {
             padding: 15px 40px;
             font-size: 18px;
-            margin: 10px;
             border: none;
             cursor: pointer;
+            margin: 10px;
+            border-radius: 8px;
         }
-        .up { background: green; color: white; }
-        .down { background: red; color: white; }
-        .balance {
-            font-size: 22px;
-            margin: 15px;
+
+        .up {
+            background: #16a34a;
+            color: white;
+        }
+
+        .down {
+            background: #dc2626;
+            color: white;
+        }
+
+        button:hover {
+            opacity: 0.8;
         }
     </style>
 </head>
 <body>
 
 <h2>EUR/GBP OTC</h2>
-<div class="balance">Balance: $<span id="balance">1000</span></div>
 
-<canvas id="chart" width="600" height="300"></canvas>
+<div class="top-bar">
+    <div class="balance">Balance: $<span id="balance">1000</span></div>
+    <div class="timer">Timer: <span id="timer">--</span></div>
+</div>
 
-<br>
+<canvas id="chart" width="800" height="400"></canvas>
 
-<button class="up" onclick="placeTrade('up')">UP</button>
-<button class="down" onclick="placeTrade('down')">DOWN</button>
+<div class="buttons">
+    <button class="up" onclick="placeTrade('up')">UP</button>
+    <button class="down" onclick="placeTrade('down')">DOWN</button>
+</div>
 
 <script>
 let balance = 1000;
-let price = 1.1000;
-let data = [];
-let labels = [];
+let candles = [];
+let currentPrice = 1.1000;
+let tradeActive = false;
+let entryPrice = 0;
+let tradeDirection = "";
+let tradeTime = 30;
+let timerInterval;
 
 const ctx = document.getElementById('chart').getContext('2d');
 
+function generateCandle() {
+    let open = currentPrice;
+    let close = open + (Math.random() - 0.5) * 0.004;
+    let high = Math.max(open, close) + Math.random() * 0.002;
+    let low = Math.min(open, close) - Math.random() * 0.002;
+
+    currentPrice = close;
+
+    return { x: new Date(), o: open, h: high, l: low, c: close };
+}
+
 for (let i = 0; i < 20; i++) {
-    price += (Math.random() - 0.5) * 0.002;
-    data.push(price);
-    labels.push(i);
+    candles.push(generateCandle());
 }
 
 const chart = new Chart(ctx, {
-    type: 'line',
+    type: 'candlestick',
     data: {
-        labels: labels,
         datasets: [{
             label: 'EUR/GBP OTC',
-            data: data,
-            borderColor: 'lime',
-            borderWidth: 2
+            data: candles
         }]
     },
     options: {
-        animation: false
+        responsive: false,
+        plugins: {
+            legend: {
+                labels: { color: "white" }
+            }
+        },
+        scales: {
+            x: {
+                ticks: { color: "white" }
+            },
+            y: {
+                ticks: { color: "white" }
+            }
+        }
     }
 });
 
 setInterval(() => {
-    price += (Math.random() - 0.5) * 0.002;
-    data.push(price);
-    data.shift();
+    candles.push(generateCandle());
+    candles.shift();
     chart.update();
-}, 1000);
+}, 2000);
 
 function placeTrade(direction) {
+    if (tradeActive) return;
     if (balance < 10) {
         alert("Not enough balance!");
         return;
     }
 
-    let entryPrice = price;
+    tradeActive = true;
+    tradeDirection = direction;
+    entryPrice = currentPrice;
     balance -= 10;
     document.getElementById("balance").innerText = balance;
 
-    setTimeout(() => {
-        let resultPrice = price;
-        let win = false;
+    let timeLeft = tradeTime;
+    document.getElementById("timer").innerText = timeLeft;
 
-        if (direction === "up" && resultPrice > entryPrice) win = true;
-        if (direction === "down" && resultPrice < entryPrice) win = true;
+    timerInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById("timer").innerText = timeLeft;
 
-        if (win) {
-            balance += 18;
-            alert("You Win!");
-        } else {
-            alert("You Lose!");
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            finishTrade();
         }
+    }, 1000);
+}
 
-        document.getElementById("balance").innerText = balance;
-    }, 30000);
+function finishTrade() {
+    let win = false;
+
+    if (tradeDirection === "up" && currentPrice > entryPrice) win = true;
+    if (tradeDirection === "down" && currentPrice < entryPrice) win = true;
+
+    if (win) {
+        balance += 18;
+        alert("You Win!");
+    } else {
+        alert("You Lose!");
+    }
+
+    document.getElementById("balance").innerText = balance;
+    document.getElementById("timer").innerText = "--";
+    tradeActive = false;
 }
 </script>
 
 </body>
 </html>
+
+
 
